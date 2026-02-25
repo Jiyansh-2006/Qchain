@@ -34,9 +34,10 @@ app.add_middleware(
 )
 
 # Model paths
-MODEL_PATH = "src/ai/model/model.pkl"
-FEATURES_PATH = "src/ai/model/features.pkl"
-SCALER_PATH = "src/ai/model/scaler.pkl"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(BASE_DIR, "model", "model.pkl")
+FEATURES_PATH = os.path.join(BASE_DIR, "model", "features.pkl")
+SCALER_PATH = os.path.join(BASE_DIR, "model", "scaler.pkl")
 
 # Load model with fallback
 model = None
@@ -579,4 +580,5 @@ async def get_transaction_analysis(hash: str):
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True)
