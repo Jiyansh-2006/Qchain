@@ -39,7 +39,10 @@ app.add_middleware(
 pqc_wallets = {}
 wallet_security_mode = {}
 
-AI_SERVICE_URL = "http://localhost:8000/predict-fraud-real-time"
+AI_SERVICE_URL = os.environ.get(
+    "AI_SERVICE_URL",
+    "http://localhost:8000/predict-fraud-real-time"
+)
 
 # ============================================================
 # Models
@@ -311,9 +314,5 @@ async def generate_quantum_hash(image_data: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        app,
-        host="0.0.0.0",
-        port=8002,
-        log_level="info"
-    )
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
