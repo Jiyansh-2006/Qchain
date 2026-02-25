@@ -311,10 +311,21 @@ async def generate_quantum_hash(image_data: str):
 @app.get("/debug-oqs")
 async def debug_oqs():
     import oqs
-    return {
-        "enabled_signatures": oqs.get_enabled_sig_mechanisms(),
-        "enabled_kems": oqs.get_enabled_kem_mechanisms()
-    }
+    
+    # Try creating a signature object directly
+    try:
+        signer = oqs.Signature("Dilithium2")
+        return {
+            "status": "oqs working",
+            "signature_mechanism": "Dilithium2",
+            "success": True
+        }
+    except Exception as e:
+        return {
+            "status": "oqs failed",
+            "error": str(e),
+            "success": False
+        }
 
 # ============================================================
 # Run Server
@@ -324,4 +335,5 @@ if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
+
 
