@@ -23,9 +23,9 @@ const defaultState: WalletState = {
 export const WalletContext = createContext<WalletContextType>({
     ...defaultState,
     loading: false,
-    connectWallet: async () => {},
-    disconnectWallet: () => {},
-    refreshBalance: async () => {},
+    connectWallet: async () => { },
+    disconnectWallet: () => { },
+    refreshBalance: async () => { },
 });
 
 export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -37,20 +37,47 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             setLoading(true);
             const network = await provider.getNetwork();
 
-            // For demo, we are assuming Polygon Amoy. In a real app, you'd check network.chainId.
-            // if (network.chainId !== 80002n) {
-            //     alert("Please switch to Polygon Amoy Testnet.");
-            // }
+            if (network.chainId !== 11155111n) {
+                alert("Please switch to Sepolia network");
+                setLoading(false);
+                return;
+            }
+            const qTokenContract = new ethers.Contract(
+                QTOKEN_CONTRACT_ADDRESS,
+                QTOKEN_ABI,
+                provider
+            );
 
-            // Mock Data for UI demonstration since contracts are placeholders
-            const qTokenBalance = (Math.random() * 10000).toFixed(4);
-            
-            const nfts: NFT[] = Array.from({ length: 3 }).map((_, i) => ({
-                id: (i + 1).toString(),
-                name: `QuantumID #${i + 1}`,
-                description: `A unique and secure Quantum Identity token.`,
-                image: `https://picsum.photos/seed/${address}${i}/300`,
-            }));
+            const rawBalance = await qTokenContract.balanceOf(address);
+            const decimals = await qTokenContract.decimals();
+            const qTokenBalance = ethers.formatUnits(rawBalance, decimals);
+
+            const nfts: NFT[] = [];
+
+            try {
+                const nftContract = new ethers.Contract(
+                    QUANTUMID_CONTRACT_ADDRESS,
+                    QUANTUMID_ABI,
+                    provider
+                );
+
+                const balance = await nftContract.balanceOf(address);
+
+                for (let i = 0; i < Number(balance); i++) {
+                    const tokenId = await nftContract.tokenOfOwnerByIndex(address, i);
+                    const tokenURI = await nftContract.tokenURI(tokenId);
+
+                    nfts.push({
+                        id: tokenId.toString(),
+                        name: `Quantum NFT #${tokenId}`,
+                        description: "Quantum secured NFT",
+                        image: tokenURI,
+                    });
+                }
+
+            } catch (err) {
+                console.warn("NFT fetch skipped:", err);
+            }
 
             setWallet({
                 provider,
@@ -95,9 +122,9 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     };
 
     const refreshBalance = useCallback(async () => {
-      if (wallet.provider && wallet.signer && wallet.address) {
-        await fetchWalletData(wallet.provider, wallet.signer, wallet.address);
-      }
+        if (wallet.provider && wallet.signer && wallet.address) {
+            await fetchWalletData(wallet.provider, wallet.signer, wallet.address);
+        }
     }, [wallet.provider, wallet.signer, wallet.address, fetchWalletData]);
 
 
