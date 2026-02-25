@@ -246,6 +246,37 @@ async def verify_signature(
         "timestamp": now_iso()
     }
 
+# ============================================================
+# Quantum Hash Route
+# ============================================================
+
+from pydantic import BaseModel
+
+class HashRequest(BaseModel):
+    image_data: str
+    name: str
+    description: str
+
+
+@app.post("/generate-hash")
+async def generate_hash(request: HashRequest):
+
+    try:
+        # Combine NFT data deterministically
+        combined = f"{request.name}|{request.description}|{request.image_data}"
+
+        # Use SHA3-256 (quantum-safe hash)
+        quantum_hash = hashlib.sha3_256(combined.encode()).hexdigest()
+
+        return {
+            "status": "success",
+            "quantum_hash": quantum_hash,
+            "timestamp": now_iso()
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/debug-oqs")
 async def debug_oqs():
@@ -262,3 +293,4 @@ if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
+
