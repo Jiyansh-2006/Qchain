@@ -18,7 +18,7 @@ export const getFraudAlerts = async (): Promise<FraudAlert[]> => {
         const alerts: FraudAlert[] = [];
 
         for (const tx of transactions) {
-            const res = await axios.post("http://localhost:8000/predict-fraud", {
+            const res = await axios.post("https://qchain-ai-backend.onrender.com/predict-fraud", {
                 amount: tx.amount,
                 fee: tx.fee,
                 sender_wallet: tx.sender_wallet,
