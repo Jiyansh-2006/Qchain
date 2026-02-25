@@ -5,13 +5,13 @@ import { NETWORKS, DEFAULT_NETWORK } from './networks';
 // ==================== CONTRACT ADDRESSES ====================
 export const QTOKEN_CONTRACT_ADDRESSES: Record<number, string> = {
     31337: '0x5FbDB2315678afecb367f032d93F642f64180aa3',
-    11155111: '',
+    11155111: '0xFb6cEd21C169443A095ad226c978bBC9e2cf98Ba',
     1: '',
 };
 
 export const QUANTUM_NFT_CONTRACT_ADDRESSES: Record<number, string> = {
     31337: '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512',
-    11155111: '', // Add your deployed contract address here
+    11155111: '0xD938371849a326c74cf0987997b2E1da91381386', // Add your deployed contract address here
     1: '',
 };
 
