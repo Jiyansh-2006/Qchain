@@ -824,7 +824,7 @@ const Dashboard: React.FC = () => {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">Chain ID</span>
-                  <span className="text-white font-medium">31337</span>
+                  <span className="text-white font-medium">11155111</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">RPC URL</span>
