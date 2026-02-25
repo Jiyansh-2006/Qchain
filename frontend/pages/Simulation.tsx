@@ -145,7 +145,7 @@ const Simulation: React.FC = () => {
 
   const fetchQuantumCircuit = async (N: number) => {
     try {
-      const response = await axios.get("http://127.0.0.1:5000/api/get_shor_circuit", {
+      const response = await axios.get("https://qchain-shor-pqc-backend.onrender.com/api/get_shor_circuit", {
         params: { N }
       });
       if (response.data.success) {
@@ -230,7 +230,7 @@ const Simulation: React.FC = () => {
     if (qInput) params.q = Number(qInput);
 
     try {
-      const resp = await axios.get<ResultShape>("http://127.0.0.1:5000/api/simulate_shor", {
+      const resp = await axios.get<ResultShape>("https://qchain-shor-pqc-backend.onrender.com/api/simulate_shor", {
         params,
         timeout: 60_000,
       });
@@ -276,7 +276,7 @@ const Simulation: React.FC = () => {
     const params: Record<string, string | number> = { message: messageInput || "A" };
 
     try {
-      const resp = await axios.get<PQCResultShape>("http://127.0.0.1:5000/api/simulate_pqc", {
+      const resp = await axios.get<PQCResultShape>("https://qchain-shor-pqc-backend.onrender.com/api/simulate_pqc", {
         params,
         timeout: 60_000,
       });
