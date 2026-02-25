@@ -10,7 +10,7 @@ export const checkTransactionFraud = async (tx: {
   timestamp: string;
 }) => {
   try {
-    const res = await axios.post("http://localhost:8000/predict-fraud-real-time", tx);
+    const res = await axios.post("https://qchain-ai-backend.onrender.com/predict-fraud-real-time", tx);
     const data = res.data;
     const alert: FraudAlert = {
       transactionHash: "0x" + Math.random().toString(16).substring(2, 66),
