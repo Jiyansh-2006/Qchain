@@ -571,9 +571,7 @@ def index():
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Combined Shor + PQC demo server")
-    parser.add_argument("--port", type=int, default=5000, help="Port to run the server on (default 5000)")
-    args = parser.parse_args()
-    print(f"Starting combined demo server on port {args.port}...")
+    port = int(os.environ.get("PORT", 5000))
+    print(f"Starting combined demo server on port {port}...")
     print("Note: Running with simulated PQC (no external dependencies required)")
-    app.run(host="0.0.0.0", port=args.port, debug=False)
+    app.run(host="0.0.0.0", port=port)
