@@ -1611,7 +1611,7 @@ const Transactions: React.FC = () => {
   // Fetch risk stats
   const fetchRiskStats = async () => {
     try {
-      const response = await fetch('http://localhost:8000/risk-stats');
+      const response = await fetch('https://qchain-ai-backend.onrender.com/risk-stats');
       if (response.ok) {
         const stats = await response.json();
         setRiskStats(stats);
@@ -1668,7 +1668,7 @@ const Transactions: React.FC = () => {
     const checkQuantumService = async () => {
       setQuantumStatus('checking');
       try {
-        const response = await fetch('http://localhost:8002/health');
+        const response = await fetch('https://qchain-quantum-pqc-backend.onrender.com/health');
         if (response.ok) {
           const health = await response.json();
           setQuantumStatus(health.status === 'healthy' ? 'online' : 'offline');
@@ -2022,7 +2022,7 @@ const Transactions: React.FC = () => {
 
           console.log("📤 Sending request to backend:", signRequest);
 
-          const response = await fetch('http://localhost:8002/sign', {
+          const response = await fetch('https://qchain-quantum-pqc-backend.onrender.com/sign', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -2165,7 +2165,7 @@ const Transactions: React.FC = () => {
           fraudSeverity: fraudResult.severity,
           fraudReason: fraudResult.reason,
           fraudAnalysis: fraudResult.analysis_details,
-          explorerUrl: `http://localhost:8545/tx/${result.hash}`,
+          explorerUrl: `https://sepolia.etherscan.io/tx/${result.hash}`,
           verification: {
             verified: true,
             method: isPqc ? 'PQC' : 'Standard',
@@ -2338,7 +2338,6 @@ const Transactions: React.FC = () => {
                   {network?.name || 'Unknown'}
                 </span>
                 <QuantumStatusBadge />
-                <WebSocketStatusBadge />
               </div>
             ) : (
               <button
