@@ -1,6 +1,6 @@
 // pages/TestTransactions.tsx
 import React, { useState, useEffect } from 'react';
-import { useWallet, TEST_ACCOUNTS } from '../hooks/useWallet';
+import { useWallet } from '../hooks/useWallet';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 
