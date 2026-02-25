@@ -70,7 +70,7 @@ const FraudAlert: React.FC = () => {
     
     try {
       // Call your fraud detection API
-      const response = await fetch('http://localhost:8000/predict-fraud-real-time', {
+      const response = await fetch('https://qchain-ai-backend.onrender.com/predict-fraud-real-time', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
