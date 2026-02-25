@@ -21,17 +21,23 @@ RUN git clone --depth=1 https://github.com/open-quantum-safe/liboqs.git \
     && cd ../.. \
     && rm -rf liboqs
 
-# Ensure dynamic linker finds liboqs
+# Make sure dynamic linker finds liboqs
 ENV LD_LIBRARY_PATH=/usr/local/lib
 
-# Install Python dependencies
-RUN pip install --no-cache-dir oqs
+# Install correct Python OQS wrapper
+RUN pip install --no-cache-dir pyoqs
 
+# Set working directory
 WORKDIR /app
+
+# Copy project files
 COPY . .
 
+# Install remaining Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Expose port used by Render
 EXPOSE 10000
 
+# Start FastAPI app
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "10000"]
