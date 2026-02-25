@@ -29,7 +29,7 @@ class TransactionMonitor {
       this.ws = new WebSocket('ws://localhost:8000/ws');
 
       this.ws.onopen = () => {
-        console.log('✅ WebSocket connected');
+        // console.log('✅ WebSocket connected');
         this.reconnectAttempts = 0;
         this.isConnecting = false;
         this.startHeartbeat();
@@ -139,7 +139,7 @@ class TransactionMonitor {
 
   async checkTransaction(txData: any): Promise<any> {
     try {
-      const response = await fetch('http://localhost:8000/predict-fraud-real-time', {
+      const response = await fetch('https://qchain-ai-backend.onrender.com/predict-fraud-real-time', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
