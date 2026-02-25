@@ -21,7 +21,7 @@ import requests
 
 app = FastAPI(
     title="QChain PQC + ZKP API",
-    version="4.0.0"
+    version="4.0.1"
 )
 
 app.add_middleware(
@@ -36,13 +36,15 @@ app.add_middleware(
 # Global State
 # ============================================================
 
-pqc_wallets = {}
-wallet_security_mode = {}
+pqc_wallets: Dict[str, Dict[str, Any]] = {}
+wallet_security_mode: Dict[str, bool] = {}
 
 AI_SERVICE_URL = os.environ.get(
     "AI_SERVICE_URL",
     "http://localhost:8000/predict-fraud-real-time"
 )
+
+PQC_ALGO = "ML-DSA-44"  # ✅ NIST standardized Dilithium2
 
 # ============================================================
 # Models
@@ -54,11 +56,13 @@ class Transaction(BaseModel):
     nonce: int
     timestamp: str
 
+
 class SignRequest(BaseModel):
     wallet_id: str
     transaction: Transaction
     algorithm: str = "pqc"
     zkp: Optional[Dict[str, Any]] = None
+
 
 # ============================================================
 # Helpers
@@ -67,12 +71,14 @@ class SignRequest(BaseModel):
 def now_iso():
     return time.strftime("%Y-%m-%dT%H:%M:%SZ")
 
+
 def canonical(tx: Transaction) -> bytes:
     return json.dumps(
         tx.dict(),
         sort_keys=True,
         separators=(",", ":")
     ).encode()
+
 
 def detect_downgrade(wallet_id: str, is_pqc: bool):
     previous = wallet_security_mode.get(wallet_id)
@@ -81,12 +87,12 @@ def detect_downgrade(wallet_id: str, is_pqc: bool):
     wallet_security_mode[wallet_id] = is_pqc
     return False
 
+
 # ============================================================
-# AI Risk Integration (Microservice Call)
+# AI Risk Integration
 # ============================================================
 
 def get_ai_risk(tx_dict):
-
     try:
         response = requests.post(
             AI_SERVICE_URL,
@@ -105,38 +111,24 @@ def get_ai_risk(tx_dict):
 
         return 10
 
-    except Exception as e:
-        print("⚠ AI service unavailable:", e)
+    except Exception:
         return 10
 
-# ============================================================
-# Cryptanalysis + AI Combined Risk
-# ============================================================
 
 def generate_analysis(tx_dict, algorithm):
 
-    # ----------- PQC Metrics (cryptographic layer) -----------
     entropy_score = random.uniform(0.88, 0.99)
     timing_leak_score = random.uniform(0.01, 0.08)
-    pattern_match = random.uniform(0.05, 0.2)
-    signature_strength = random.uniform(0.92, 0.99)
-    nonce_reuse_risk = 0.0
-    timestamp_drift = random.uniform(1, 5)
 
-    # ----------- AI Risk -----------
     ai_risk = get_ai_risk(tx_dict)
-
-    # ----------- Combine Risk -----------
     risk_score = ai_risk
 
-    # Add cryptographic anomaly boost
     if timing_leak_score > 0.06:
         risk_score += 10
 
     if entropy_score < 0.9:
         risk_score += 10
 
-    # Hard safety guard
     if tx_dict["amount"] > 5_000_000:
         risk_score = 95
 
@@ -149,33 +141,12 @@ def generate_analysis(tx_dict, algorithm):
     else:
         risk = "low"
 
-    secure = risk != "high"
-
     return {
-        "secure": secure,
+        "secure": risk != "high",
         "risk": risk,
-        "risk_score": risk_score,
-        "issues": [] if secure else ["High anomaly detected"],
-        "metrics": {
-            "entropy_score": entropy_score,
-            "timing_leak_score": timing_leak_score,
-            "pattern_match": pattern_match,
-            "signature_strength": signature_strength,
-            "nonce_reuse_risk": nonce_reuse_risk,
-            "timestamp_drift": timestamp_drift
-        },
-        "recommendations": (
-            ["Transaction safe"]
-            if secure
-            else ["Review transaction before proceeding"]
-        ),
-        "timestamp_analysis": {
-            "expected_delay": 120,
-            "actual_delay": random.uniform(115, 130),
-            "variance": random.uniform(1, 5),
-            "is_suspicious": timing_leak_score > 0.07
-        }
+        "risk_score": risk_score
     }
+
 
 # ============================================================
 # Routes
@@ -185,9 +156,10 @@ def generate_analysis(tx_dict, algorithm):
 async def root():
     return {
         "service": "QChain PQC API",
-        "version": "4.0.0",
+        "version": "4.0.1",
         "timestamp": now_iso()
     }
+
 
 @app.get("/health")
 async def health():
@@ -197,24 +169,21 @@ async def health():
         "timestamp": now_iso()
     }
 
+
 @app.post("/sign", status_code=status.HTTP_201_CREATED)
 async def sign_transaction(request: SignRequest):
 
     wallet_id = request.wallet_id
-    algorithm = request.algorithm.lower()
     message = canonical(request.transaction)
 
     # ---------------- PQC SIGNING ----------------
-    if algorithm == "pqc":
+    if request.algorithm.lower() == "pqc":
 
         if detect_downgrade(wallet_id, True):
-            raise HTTPException(
-                status_code=400,
-                detail="Security downgrade detected"
-            )
+            raise HTTPException(status_code=400, detail="Security downgrade detected")
 
         if wallet_id not in pqc_wallets:
-            signer = oqs.Signature("ML-DSA-44")
+            signer = oqs.Signature(PQC_ALGO)
             public_key = signer.generate_keypair()
             pqc_wallets[wallet_id] = {
                 "signer": signer,
@@ -223,41 +192,28 @@ async def sign_transaction(request: SignRequest):
 
         signer = pqc_wallets[wallet_id]["signer"]
         signature = signer.sign(message).hex()
-        algo_name = "ML-DSA-44"
+        algo_name = PQC_ALGO
 
     # ---------------- ECDSA SIMULATION ----------------
     else:
-
-        if detect_downgrade(wallet_id, False):
-            raise HTTPException(
-                status_code=400,
-                detail="Cannot downgrade security"
-            )
-
         signature = hashlib.sha256(message).hexdigest()
         algo_name = "ECDSA-SHA256"
 
-    # ---------------- Combined Risk Analysis ----------------
-    analysis = generate_analysis(
-        request.transaction.dict(),
-        algo_name
-    )
+    analysis = generate_analysis(request.transaction.dict(), algo_name)
 
     if analysis["risk"] == "high":
-        raise HTTPException(
-            status_code=400,
-            detail=analysis
-        )
+        raise HTTPException(status_code=400, detail=analysis)
 
     return {
         "status": "success",
         "signature": signature,
         "algorithm": algo_name,
         "transaction_hash": hashlib.sha256(message).hexdigest(),
-        "cryptanalysis": analysis,
+        "analysis": analysis,
         "timestamp": now_iso(),
         "wallet_id": wallet_id
     }
+
 
 @app.post("/verify")
 async def verify_signature(
@@ -269,11 +225,11 @@ async def verify_signature(
 
     message = canonical(transaction)
 
-    if algorithm.lower() in ["dilithium2", "pqc"]:
+    if algorithm == PQC_ALGO:
         if wallet_id not in pqc_wallets:
             raise HTTPException(status_code=404, detail="Wallet not found")
 
-        verifier = oqs.Signature("Dilithium2")
+        verifier = oqs.Signature(PQC_ALGO)
         signature_bytes = bytes.fromhex(signature)
 
         verified = verifier.verify(
@@ -281,7 +237,6 @@ async def verify_signature(
             signature_bytes,
             pqc_wallets[wallet_id]["public_key"]
         )
-
     else:
         expected = hashlib.sha256(message).hexdigest()
         verified = signature == expected
@@ -291,37 +246,13 @@ async def verify_signature(
         "timestamp": now_iso()
     }
 
-@app.post("/generate-hash")
-async def generate_quantum_hash(image_data: str):
-
-    raw = image_data.split(",")[-1]
-    image_bytes = base64.b64decode(raw)
-    entropy = os.urandom(64)
-
-    hasher = hashlib.sha3_256()
-    hasher.update(image_bytes)
-    hasher.update(entropy)
-
-    return {
-        "quantum_hash": hasher.hexdigest(),
-        "algorithm": "SHA3-256 + PQC entropy",
-        "timestamp": now_iso()
-    }
 
 @app.get("/debug-oqs")
 async def debug_oqs():
-    import oqs
-    try:
-        sigs = oqs.get_enabled_sig_mechanisms()
-        return {
-            "success": True,
-            "enabled_signatures": sigs
-        }
-    except Exception as e:
-        return {
-            "success": False,
-            "error": str(e)
-        }
+    return {
+        "enabled_signatures": oqs.get_enabled_sig_mechanisms()
+    }
+
 
 # ============================================================
 # Run Server
@@ -331,7 +262,3 @@ if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
-
-
-
-
