@@ -214,7 +214,7 @@ async def sign_transaction(request: SignRequest):
             )
 
         if wallet_id not in pqc_wallets:
-            signer = oqs.Signature("Dilithium2")
+            signer = oqs.Signature("ML-DSA-44")
             public_key = signer.generate_keypair()
             pqc_wallets[wallet_id] = {
                 "signer": signer,
@@ -223,7 +223,7 @@ async def sign_transaction(request: SignRequest):
 
         signer = pqc_wallets[wallet_id]["signer"]
         signature = signer.sign(message).hex()
-        algo_name = "Dilithium2"
+        algo_name = "ML-DSA-44"
 
     # ---------------- ECDSA SIMULATION ----------------
     else:
@@ -331,6 +331,7 @@ if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
+
 
 
 
