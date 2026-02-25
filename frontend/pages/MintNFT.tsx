@@ -99,7 +99,7 @@ const QUANTUM_NFT_ABI = [
   "event NFTMinted(uint256 indexed tokenId, address indexed owner, string name, string quantumHash, string tokenURI)"
 ];
 
-const DEFAULT_QUANTUM_NFT_ADDRESS = CONTRACT_ADDRESSES.localhost?.quantumNFTAddress || '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512';
+const DEFAULT_QUANTUM_NFT_ADDRESS = "0xD938371849a326c74cf0987997b2E1da91381386";
 
 // ==================== UTILITY FUNCTIONS ====================
 const formatAddress = (address: string, startLength: number = 6, endLength: number = 4): string => {
@@ -164,7 +164,7 @@ const MintNFT: React.FC = () => {
   const [status, setStatus] = useState<{ type: 'success' | 'error' | 'info' | 'warning', message: string } | null>(null);
   const [mintedNFT, setMintedNFT] = useState<any>(null);
   const [account, setAccount] = useState('');
-  const [network, setNetwork] = useState({ name: 'Localhost', chainId: 31337, currencySymbol: 'ETH' });
+  const [network, setNetwork] = useState({ name: 'Sepolia', chainId: 11155111, currencySymbol: 'ETH' });
   const [mintPrice, setMintPrice] = useState('0.001');
   const [loading, setLoading] = useState({
     wallet: false,
@@ -240,11 +240,11 @@ const MintNFT: React.FC = () => {
       const chainId = await ethereum.request({ method: 'eth_chainId' });
       const chainIdNum = parseInt(chainId, 16);
 
-      if (chainIdNum === 31337) {
-        setNetwork({ name: 'Localhost', chainId: 31337, currencySymbol: 'ETH' });
+      if (chainIdNum === 11155111) {
+        setNetwork({ name: 'Sepolia', chainId: 11155111, currencySymbol: 'ETH' });
       } else {
         setNetwork({ name: 'Unknown', chainId: chainIdNum, currencySymbol: 'ETH' });
-        setStatus({ type: 'warning', message: 'Please switch to Localhost network (Chain ID 31337)' });
+        setStatus({ type: 'warning', message: 'Please switch to Sepolia network (Chain ID 11155111)' });
       }
     } catch (error) {
       console.error('Error checking network:', error);
@@ -256,13 +256,8 @@ const MintNFT: React.FC = () => {
     const isHealthy = await quantumService.checkHealth();
     setQuantumStatus(isHealthy ? 'online' : 'offline');
 
-    if (isHealthy && account && quantumWalletId) {
-      console.log('✅ Quantum service connected');
-      try {
-        await quantumService.getWallet(quantumWalletId);
-      } catch (error) {
-        console.log('Failed to get quantum wallet:', error);
-      }
+    if (isHealthy) {
+  console.log('✅ Quantum service connected');
     }
   };
 
@@ -279,22 +274,22 @@ const MintNFT: React.FC = () => {
       const chainId = await ethereum.request({ method: 'eth_chainId' });
       const currentChainId = parseInt(chainId, 16);
 
-      if (currentChainId !== 31337) {
-        const shouldSwitch = window.confirm('Switch to Localhost network for minting?');
+      if (currentChainId !== 11155111) {
+        const shouldSwitch = window.confirm('Switch to Sepolia network for minting?');
         if (shouldSwitch) {
           try {
             await ethereum.request({
               method: 'wallet_addEthereumChain',
               params: [{
-                chainId: '0x7a69', // 31337 in hex
-                chainName: 'Localhost',
+                chainId: '0xaa36a7', // 11155111 in hex
+                chainName: 'Sepolia',
                 nativeCurrency: {
                   name: 'Ether',
                   symbol: 'ETH',
                   decimals: 18
                 },
                 rpcUrls: ['https://rpc.sepolia.org'],
-                blockExplorerUrls: []
+                blockExplorerUrls: ['https://sepolia.etherscan.io']
               }]
             });
           } catch (error) {
@@ -329,11 +324,21 @@ const MintNFT: React.FC = () => {
     }
 
     if (!quantumNFTAddress) {
-      setStatus({
-        type: 'warning',
-        message: 'Please deploy the contract first using "npm run deploy"'
-      });
-    }
+  setStatus({
+    type: 'error',
+    message: 'NFT contract not configured.'
+  });
+  return;
+}
+
+const provider = new ethers.BrowserProvider(ethereum);
+const signer = await provider.getSigner();
+
+const nftContract = new ethers.Contract(
+  quantumNFTAddress,
+  QUANTUM_NFT_ABI,
+  signer
+);
 
     try {
       const provider = new ethers.BrowserProvider(ethereum);
@@ -426,13 +431,8 @@ const generateHash = async () => {
     return;
   }
 
-  if (!form.name.trim()) {
-    setStatus({ type: 'error', message: 'Please enter NFT name' });
-    return;
-  }
-
-  if (!form.description.trim()) {
-    setStatus({ type: 'error', message: 'Please enter NFT description' });
+  if (!form.name.trim() || !form.description.trim()) {
+    setStatus({ type: 'error', message: 'Fill name and description' });
     return;
   }
 
@@ -441,47 +441,46 @@ const generateHash = async () => {
     setStatus({ type: 'info', message: 'Generating quantum hash...' });
 
     const base64Data = await fileToBase64(form.image);
-    
-    // Compress the image to make URL smaller
-    const compressedData = await compressImage(base64Data);
-    
-    // Create URL with query parameters
-    const params = new URLSearchParams({
-      image_data: compressedData,
-      name: form.name.trim(),
-      description: form.description.trim()
-    });
 
-    const url = `http://localhost:8002/generate-hash?${params.toString()}`;
-    
-    console.log('URL length:', url.length); // Should be under 8000 now
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json'
+    const response = await fetch(
+      "https://qchain-quantum-pqc-backend.onrender.com/generate-hash",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify({
+          image_data: base64Data,
+          name: form.name.trim(),
+          description: form.description.trim()
+        })
       }
-    });
-
-    const responseText = await response.text();
-    let data;
-    try {
-      data = JSON.parse(responseText);
-    } catch (e) {
-      throw new Error(responseText);
-    }
+    );
 
     if (!response.ok) {
-      throw new Error(data.detail || data.message || 'Failed');
+      const errorText = await response.text();
+      throw new Error(errorText);
     }
 
-    setForm(prev => ({ ...prev, quantumHash: data.quantum_hash }));
+    const data = await response.json();
+
+    if (!data.quantum_hash) {
+      throw new Error("Invalid response from backend");
+    }
+
+    setForm(prev => ({
+      ...prev,
+      quantumHash: data.quantum_hash
+    }));
+
     setQuantumStatus('online');
     setStatus({ type: 'success', message: '✅ Quantum hash generated!' });
 
   } catch (err: any) {
-    console.error(err);
-    setStatus({ type: 'error', message: err.message });
+    console.error("Hash error:", err);
+    setQuantumStatus('offline');
+    setStatus({ type: 'error', message: err.message || 'Hash generation failed' });
   } finally {
     setLoading(prev => ({ ...prev, hash: false }));
   }
@@ -500,8 +499,8 @@ const mintNFT = async () => {
     return;
   }
 
-  if (network.chainId !== 31337) {
-    setStatus({ type: 'error', message: 'Please switch to Localhost network (Chain ID 31337)' });
+  if (network.chainId !== 11155111) {
+    setStatus({ type: 'error', message: 'Please switch to Sepolia network (Chain ID 11155111)' });
     return;
   }
 
@@ -837,7 +836,7 @@ const mintNFT = async () => {
               {/* Mint Button */}
               <button
                 onClick={mintNFT}
-                disabled={loading.mint || !account || !form.quantumHash || network.chainId !== 31337}
+                disabled={loading.mint || !account || !form.quantumHash || network.chainId !== 11155111}
                 className={`w-full py-3 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all ${quantumStatus === 'online'
                     ? 'bg-gradient-to-r from-purple-600 to-pink-600'
                     : 'bg-gradient-to-r from-blue-600 to-cyan-500'
@@ -848,7 +847,7 @@ const mintNFT = async () => {
                     <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
                     Minting...
                   </span>
-                ) : network.chainId !== 31337 ? (
+                ) : network.chainId !== 11155111 ? (
                   'Switch to Localhost Network'
                 ) : (
                   `Mint NFT ${quantumStatus === 'online' ? '(Quantum)' : ''} (${formatPrice(mintPrice)})`
@@ -900,8 +899,8 @@ const mintNFT = async () => {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">Status:</span>
-                  <span className={network.chainId === 31337 ? 'text-green-400' : 'text-yellow-400'}>
-                    {network.chainId === 31337 ? '✓ Ready' : '⚠️ Switch to Localhost'}
+                  <span className={network.chainId === 11155111 ? 'text-green-400' : 'text-yellow-400'}>
+                    {network.chainId === 11155111 ? '✓ Ready' : '⚠️ Switch to Sepolia'}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
