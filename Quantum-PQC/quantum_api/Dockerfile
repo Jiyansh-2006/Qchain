@@ -10,15 +10,16 @@ RUN apt-get update && apt-get install -y \
     python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Build liboqs with Dilithium + Kyber
+# ----------------------------
+# Build liboqs with STANDARD algorithms
+# ----------------------------
 RUN git clone --depth=1 https://github.com/open-quantum-safe/liboqs.git \
     && cd liboqs \
     && mkdir build && cd build \
     && cmake -GNinja \
         -DBUILD_SHARED_LIBS=ON \
         -DOQS_BUILD_ONLY_LIB=ON \
-        -DOQS_ENABLE_SIG_DILITHIUM=ON \
-        -DOQS_ENABLE_KEM_KYBER=ON \
+        -DOQS_ALGS_ENABLED=STD \
         .. \
     && ninja \
     && ninja install \
@@ -28,7 +29,9 @@ RUN git clone --depth=1 https://github.com/open-quantum-safe/liboqs.git \
 
 ENV LD_LIBRARY_PATH=/usr/local/lib
 
+# ----------------------------
 # Install official Python wrapper
+# ----------------------------
 RUN git clone --depth=1 https://github.com/open-quantum-safe/liboqs-python.git \
     && cd liboqs-python \
     && pip install . \
