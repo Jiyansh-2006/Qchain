@@ -2,7 +2,7 @@
 // IMPORTANT: These are placeholder addresses and ABIs for the Polygon Amoy Testnet.
 // Replace with your actual deployed contract details.
 
-export const QTOKEN_CONTRACT_ADDRESS = '0x...'; // Replace with your ERC-20 contract address
+export const QTOKEN_CONTRACT_ADDRESS = import.meta.env.VITE_QTOKEN_ADDRESS; // Replace with your ERC-20 contract address
 export const QUANTUMID_CONTRACT_ADDRESS = '0x...'; // Replace with your ERC-721 contract address
 
 export const QTOKEN_ABI = [
