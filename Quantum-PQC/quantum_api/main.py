@@ -41,7 +41,7 @@ wallet_security_mode: Dict[str, bool] = {}
 
 AI_SERVICE_URL = os.environ.get(
     "AI_SERVICE_URL",
-    "http://localhost:8000/predict-fraud-real-time"
+    "https://qchain-ai-backend.onrender.com/predict-fraud-real-time"
 )
 
 PQC_ALGO = "ML-DSA-44"  # ✅ NIST standardized Dilithium2
@@ -293,4 +293,5 @@ if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
+
 
