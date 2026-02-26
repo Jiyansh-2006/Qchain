@@ -4,7 +4,7 @@ import { ethers } from 'ethers';
 /* ================= CONFIG ================= */
 
 // 🔥 PUT YOUR REAL SEPOLIA CONTRACT HERE
-const SEPOLIA_QTOKEN_ADDRESS = "0xFb6cEd21C169443A095ad226c978bBC9e2cf98Ba";
+const SEPOLIA_QTOKEN_ADDRESS = import.meta.env.VITE_QTOKEN_ADDRESS;
 
 const QTOKEN_ABI = [
     "function balanceOf(address) view returns (uint256)",
