@@ -99,7 +99,7 @@ const QUANTUM_NFT_ABI = [
   "event NFTMinted(uint256 indexed tokenId, address indexed owner, string name, string quantumHash, string tokenURI)"
 ];
 
-const DEFAULT_QUANTUM_NFT_ADDRESS = "0xD938371849a326c74cf0987997b2E1da91381386";
+const DEFAULT_QUANTUM_NFT_ADDRESS = import.meta.env.VITE_QUANTUM_NFT_ADDRESS;
 
 // ==================== UTILITY FUNCTIONS ====================
 const formatAddress = (address: string, startLength: number = 6, endLength: number = 4): string => {
