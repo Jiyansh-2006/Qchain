@@ -5,7 +5,7 @@ import { NETWORKS, DEFAULT_NETWORK } from './networks';
 // ==================== CONTRACT ADDRESSES ====================
 export const QTOKEN_CONTRACT_ADDRESSES: Record<number, string> = {
     31337: '0x5FbDB2315678afecb367f032d93F642f64180aa3',
-    11155111: import.meta.env.VITE_QTOKEN_ADDRESS;,
+    11155111: import.meta.env.VITE_QTOKEN_ADDRESS,
     1: '',
 };
 
@@ -273,4 +273,5 @@ export const getInfuraUrl = (network: string = 'sepolia'): string => {
 
 // Export NETWORKS for direct access
 export { NETWORKS, DEFAULT_NETWORK };
+
 
