@@ -26,7 +26,7 @@ class TransactionMonitor {
     }
 
     try {
-      this.ws = new WebSocket('ws://localhost:8000/ws');
+      this.ws = new WebSocket('wss://qchain-ai-backend.onrender.com/ws');
 
       this.ws.onopen = () => {
         // console.log('✅ WebSocket connected');
@@ -189,3 +189,4 @@ class TransactionMonitor {
 }
 
 export const transactionMonitor = new TransactionMonitor();
+
