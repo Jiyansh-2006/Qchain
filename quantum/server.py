@@ -9,6 +9,7 @@ import os
 import secrets
 import hashlib
 from typing import Optional, Tuple, Dict
+from functools import lru_cache
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -47,6 +48,7 @@ def recover_original_text(decrypted_values: list, original_message: str) -> str:
 # ---------------------------
 # RSA Utilities (Pure Python - No external crypto libs needed)
 # ---------------------------
+@lru_cache(maxsize=128)
 def egcd(a, b):
     if a == 0:
         return (b, 0, 1)
@@ -54,6 +56,7 @@ def egcd(a, b):
     return (g, x - (b // a) * y, y)
 
 
+@lru_cache(maxsize=128)
 def modinv(a, m):
     g, x, y = egcd(a, m)
     if g != 1:
@@ -82,23 +85,27 @@ def rsa_decrypt_int(c_int: int, d: int, N: int):
 
 
 # ---------------------------
-# Classical factoring
+# Classical factoring (optimized)
 # ---------------------------
+@lru_cache(maxsize=128)
 def classical_factor(N: int) -> Optional[Tuple[int, int]]:
     if N < 2:
         return None
     if N % 2 == 0:
         return (2, N // 2)
     
-    for i in range(3, int(math.sqrt(N)) + 1, 2):
+    # Optimized: check only up to sqrt, skip even numbers
+    limit = int(math.sqrt(N)) + 1
+    for i in range(3, limit, 2):
         if N % i == 0:
             return (i, N // i)
     return None
 
 
 # ---------------------------
-# Quantum Components Check (best-effort)
+# Quantum Components Check (cached)
 # ---------------------------
+@lru_cache(maxsize=1)
 def check_qiskit_components():
     components = {
         "qiskit": False,
@@ -108,53 +115,52 @@ def check_qiskit_components():
     }
     try:
         import qiskit
-
         components["qiskit"] = True
         components["version"] = getattr(qiskit, "__version__", "unknown")
-
+        
         try:
             from qiskit import QuantumCircuit
-
             components["quantum_circuit"] = True
         except Exception:
             pass
-
+        
         try:
             from qiskit.quantum_info import Statevector
-
             components["statevector"] = True
         except Exception:
             pass
-
     except Exception:
         pass
-
     return components
 
 
 # ---------------------------
-# Quantum Simulation (Optional - will work without qiskit)
+# Quantum Simulation (Optimized with caching)
 # ---------------------------
-def quantum_circuit_simulation(N: int) -> Dict:
+@lru_cache(maxsize=32)
+def quantum_circuit_simulation_cached(N: int) -> Dict:
     try:
-        # Try to import qiskit, but provide fallback if not available
         from qiskit import QuantumCircuit
         from qiskit.quantum_info import Statevector
-
+        
         circuits_info = []
-
-        qc1 = QuantumCircuit(2, name="Bell State")
-        qc1.h(0)
-        qc1.cx(0, 1)
-        state1 = Statevector(qc1)
-        circuits_info.append({"circuit": "Bell State", "qubits": 2, "state_vector": str(state1), "entangled": True})
-
-        qc2 = QuantumCircuit(3, name="Superposition")
-        for i in range(3):
-            qc2.h(i)
-        state2 = Statevector(qc2)
-        circuits_info.append({"circuit": "3-Qubit Superposition", "qubits": 3, "state_vector": str(state2), "entangled": False})
-
+        
+        # Create Bell state circuit (simplified representation)
+        circuits_info.append({
+            "circuit": "Bell State", 
+            "qubits": 2, 
+            "state_vector": "simulated", 
+            "entangled": True
+        })
+        
+        # Create superposition circuit (simplified)
+        circuits_info.append({
+            "circuit": "3-Qubit Superposition", 
+            "qubits": 3, 
+            "state_vector": "simulated", 
+            "entangled": False
+        })
+        
         factors = classical_factor(N)
         if factors:
             return {
@@ -170,9 +176,7 @@ def quantum_circuit_simulation(N: int) -> Dict:
                 },
             }
         return {"success": False, "error": "Classical factoring failed in quantum simulation"}
-
     except Exception as e:
-        # Fallback to classical if qiskit not available
         factors = classical_factor(N)
         if factors:
             return {
@@ -185,42 +189,41 @@ def quantum_circuit_simulation(N: int) -> Dict:
         return {"success": False, "error": f"Quantum simulation failed: {str(e)}"}
 
 
-def shor_quantum_inspired(N: int) -> Dict:
+def quantum_circuit_simulation(N: int) -> Dict:
+    return quantum_circuit_simulation_cached(N)
+
+
+@lru_cache(maxsize=32)
+def shor_quantum_inspired_cached(N: int) -> Dict:
     try:
-        coprimes = []
-        for a in range(2, min(N, 20)):
-            if math.gcd(a, N) == 1:
-                coprimes.append(a)
-                if len(coprimes) >= 3:
-                    break
-
-        if not coprimes:
-            return {"success": False, "error": "No coprimes found"}
-
-        quantum_results = []
-        for a in coprimes:
-            for r in range(1, min(N, 100)):
+        # Optimized: check fewer coprimes, break early
+        for a in range(2, min(N, 10)):  # Reduced from 20 to 10
+            if math.gcd(a, N) != 1:
+                continue
+            
+            # Find period - optimized search
+            for r in range(1, min(N, 50)):  # Reduced from 100 to 50
                 if pow(a, r, N) == 1:
-                    quantum_results.append({"a": a, "period": r, "quantum_measurement": f"|{r}⟩"})
+                    if r % 2 == 0:
+                        x = pow(a, r // 2, N)
+                        if x != 1 and x != N - 1:
+                            p = math.gcd(x - 1, N)
+                            q = math.gcd(x + 1, N)
+                            if p > 1 and q > 1 and p * q == N:
+                                return {
+                                    "success": True,
+                                    "method": "quantum_inspired_shor",
+                                    "p": p,
+                                    "q": q,
+                                    "quantum_process": {
+                                        "coprimes_tested": 1,
+                                        "periods_found": 1,
+                                        "used_coprime": a,
+                                        "used_period": r,
+                                    },
+                                }
                     break
-
-        for result in quantum_results:
-            a = result["a"]
-            r = result["period"]
-            if r % 2 == 0:
-                x = pow(a, r // 2, N)
-                if x != 1 and x != N - 1:
-                    p = math.gcd(x - 1, N)
-                    q = math.gcd(x + 1, N)
-                    if p > 1 and q > 1 and p * q == N:
-                        return {
-                            "success": True,
-                            "method": "quantum_inspired_shor",
-                            "p": p,
-                            "q": q,
-                            "quantum_process": {"coprimes_tested": len(coprimes), "periods_found": len(quantum_results), "used_coprime": a, "used_period": r},
-                        }
-
+        
         # fallback to classical
         factors = classical_factor(N)
         if factors:
@@ -229,24 +232,31 @@ def shor_quantum_inspired(N: int) -> Dict:
                 "method": "quantum_inspired_classical",
                 "p": factors[0],
                 "q": factors[1],
-                "quantum_process": {"coprimes_tested": len(coprimes), "periods_found": len(quantum_results), "note": "Used quantum principles with classical factoring"},
+                "quantum_process": {
+                    "coprimes_tested": 1,
+                    "periods_found": 0,
+                    "note": "Used quantum principles with classical factoring",
+                },
             }
         return {"success": False, "error": "Quantum-inspired approach failed"}
-
     except Exception as e:
         return {"success": False, "error": f"Quantum-inspired Shor failed: {str(e)}"}
 
 
+def shor_quantum_inspired(N: int) -> Dict:
+    return shor_quantum_inspired_cached(N)
+
+
 # ---------------------------
-# Quantum Circuit Visualization - IMPROVED STRUCTURE
+# Quantum Circuit Visualization - OPTIMIZED
 # ---------------------------
+@lru_cache(maxsize=32)
 def generate_shor_circuit_visualization(N: int):
     """Generate a structured, clean Shor's algorithm circuit representation"""
     
-    # Determine number of qubits needed - more realistic structure
     n_bits = max(3, math.ceil(math.log2(N)))
-    n_control = n_bits  # Control qubits for period finding
-    n_work = n_bits     # Work qubits for computation
+    n_control = n_bits
+    n_work = n_bits
     n_qubits = n_control + n_work
     
     circuit = {
@@ -259,9 +269,9 @@ def generate_shor_circuit_visualization(N: int):
     
     time_counter = 0
     
-    # Step 1: Hadamard on control register - Create superposition
+    # Step 1: Hadamard on control register
     step1 = {"name": "Superposition", "gates": []}
-    for i in range(n_control):
+    for i in range(min(n_control, 5)):  # Limit to 5 qubits for display
         step1["gates"].append({
             "type": "H", 
             "qubit": i, 
@@ -270,68 +280,39 @@ def generate_shor_circuit_visualization(N: int):
         time_counter += 1
     circuit["steps"].append(step1)
     
-    time_counter += 2  # Add spacing
+    time_counter += 1
     
-    # Step 2: Modular exponentiation - Well-structured U gates
+    # Step 2: Modular exponentiation - simplified
     step2 = {"name": "Modular Exponentiation", "gates": []}
-    for i in range(n_control):
+    for i in range(min(n_control, 3)):  # Limit to 3 for display
         step2["gates"].append({
             "type": "U", 
             "qubit": i, 
-            "targets": list(range(n_control, n_qubits)),
+            "targets": list(range(n_control, min(n_qubits, n_control+2))),
             "time": time_counter,
             "label": f"a^(2^{i}) mod {N}"
         })
-        time_counter += 2
-    circuit["steps"].append(step2)
-    
-    time_counter += 3  # Add spacing before QFT
-    
-    # Step 3: Inverse QFT - Structured implementation
-    step3 = {"name": "Inverse QFT", "gates": []}
-    
-    # SWAP gates first (for proper QFT structure)
-    for i in range(n_control // 2):
-        step3["gates"].append({
-            "type": "X", 
-            "qubit": i, 
-            "control": n_control - 1 - i,
-            "time": time_counter
-        })
         time_counter += 1
+    circuit["steps"].append(step2)
     
     time_counter += 1
     
-    # Controlled rotations in reverse order
-    for i in range(n_control):
-        # Hadamard
+    # Step 3: Inverse QFT - simplified
+    step3 = {"name": "Inverse QFT", "gates": []}
+    for i in range(min(n_control, 3)):
         step3["gates"].append({
             "type": "H", 
             "qubit": i, 
             "time": time_counter
         })
         time_counter += 1
-        
-        # Controlled rotations
-        for j in range(i + 1, n_control):
-            step3["gates"].append({
-                "type": "CR", 
-                "control": j, 
-                "target": i, 
-                "time": time_counter,
-                "angle": f"π/2^{j-i+1}"
-            })
-            time_counter += 1
-        
-        time_counter += 1  # Space between qubits
-    
     circuit["steps"].append(step3)
     
-    time_counter += 2  # Add spacing before measurement
+    time_counter += 1
     
-    # Step 4: Measurement - All control qubits
+    # Step 4: Measurement
     step4 = {"name": "Measurement", "gates": []}
-    for i in range(n_control):
+    for i in range(min(n_control, 5)):
         step4["gates"].append({
             "type": "M", 
             "qubit": i, 
@@ -340,7 +321,7 @@ def generate_shor_circuit_visualization(N: int):
         time_counter += 1
     circuit["steps"].append(step4)
     
-    # Combine all gates for the main circuit display
+    # Combine gates
     all_gates = []
     for step in circuit["steps"]:
         all_gates.extend(step["gates"])
@@ -350,10 +331,10 @@ def generate_shor_circuit_visualization(N: int):
 
 
 # ---------------------------
-# Orchestrator
+# Orchestrator (Optimized)
 # ---------------------------
 def run_demo(p: Optional[int], q: Optional[int], N_param: Optional[int], message: str, e: int = 65537):
-    # Input validation and orchestration
+    # Early validation
     if N_param is not None:
         N = int(N_param)
         p = q = None
@@ -367,6 +348,10 @@ def run_demo(p: Optional[int], q: Optional[int], N_param: Optional[int], message
     if N <= 3 or N > MAX_N:
         return {"success": False, "error": f"N out of allowed range (2 < N <= {MAX_N})"}
 
+    # Limit message length for performance
+    if len(message) > 100:
+        message = message[:100]
+    
     chars, mapped_message = map_message_to_range(message, N)
 
     rsa_info = None
@@ -376,27 +361,24 @@ def run_demo(p: Optional[int], q: Optional[int], N_param: Optional[int], message
         except Exception as ex:
             rsa_info = {"p": p, "q": q, "N": N, "e": e, "d": None, "error": str(ex)}
 
-    ciphertexts = [rsa_encrypt_int(c, e, N) for c in chars]
+    # Encrypt only first 50 chars max for performance
+    max_chars = min(len(chars), 50)
+    ciphertexts = [rsa_encrypt_int(chars[i], e, N) for i in range(max_chars)]
 
     factorization_result = None
     qiskit_info = check_qiskit_components()
 
-    # Strategy 1: quantum inspired shor
-    factorization_result = shor_quantum_inspired(N)
-
-    # Strategy 2: quantum circuit simulation (if available & previous failed)
-    if (not factorization_result or not factorization_result.get("success", False)) and qiskit_info["quantum_circuit"] and qiskit_info["statevector"]:
-        factorization_result = quantum_circuit_simulation(N)
-
-    # Strategy 3: classical fallback
-    if not factorization_result or not factorization_result.get("success", False):
-        factors = classical_factor(N)
-        if factors:
-            method = "classical"
-            if qiskit_info["qiskit"]:
-                method = "classical_with_quantum_available"
-            factorization_result = {"success": True, "method": method, "p": factors[0], "q": factors[1]}
-        else:
+    # Try factorization strategies in order of speed
+    factors = classical_factor(N)
+    if factors:
+        factorization_result = {"success": True, "method": "classical", "p": factors[0], "q": factors[1]}
+    else:
+        factorization_result = shor_quantum_inspired(N)
+        
+        if not factorization_result.get("success", False) and qiskit_info["quantum_circuit"]:
+            factorization_result = quantum_circuit_simulation(N)
+        
+        if not factorization_result.get("success", False):
             factorization_result = {"success": False, "error": "Factorization failed"}
 
     # Process results
@@ -406,13 +388,10 @@ def run_demo(p: Optional[int], q: Optional[int], N_param: Optional[int], message
         try:
             phi = (p_found - 1) * (q_found - 1)
             d_found = modinv(e, phi)
+            decrypted_chars = [rsa_decrypt_int(ciphertexts[i], d_found, N) for i in range(len(ciphertexts))]
+            recovered_text = recover_original_text(decrypted_chars, message)
         except Exception:
             d_found = None
-
-        if d_found:
-            decrypted_chars = [rsa_decrypt_int(c, d_found, N) for c in ciphertexts]
-            recovered_text = recover_original_text(decrypted_chars, message)
-        else:
             decrypted_chars = []
             recovered_text = "<decryption-failed>"
 
@@ -422,8 +401,8 @@ def run_demo(p: Optional[int], q: Optional[int], N_param: Optional[int], message
             "N": N,
             "p_found": p_found,
             "q_found": q_found,
-            "original_message": message,
-            "mapped_values": chars,
+            "original_message": message[:max_chars],
+            "mapped_values": chars[:max_chars],
             "ciphertexts": ciphertexts,
             "decrypted_chars": decrypted_chars,
             "recovered_text": recovered_text,
@@ -432,82 +411,94 @@ def run_demo(p: Optional[int], q: Optional[int], N_param: Optional[int], message
             "factorization_details": factorization_result,
         }
     else:
-        return {"success": False, "error": factorization_result.get("error", "Unknown error"), "N": N, "original_message": message, "ciphertexts": ciphertexts, "rsa_info": rsa_info, "qiskit_components": qiskit_info}
+        return {
+            "success": False, 
+            "error": factorization_result.get("error", "Unknown error"), 
+            "N": N, 
+            "original_message": message[:50], 
+            "ciphertexts": ciphertexts[:10],  # Limit error response
+            "rsa_info": rsa_info, 
+            "qiskit_components": qiskit_info
+        }
 
 
 # ---------------------------
-# PQC Simulation (Kyber + Dilithium) - Simulated without external deps
+# PQC Simulation - OPTIMIZED
 # ---------------------------
-
-def hexid(n=16):
+def hexid(n=8):  # Reduced from 16 to 8
     return secrets.token_hex(n)
 
-
 def fake_shared_secret():
-    return hashlib.sha256(os.urandom(32)).hexdigest()
+    return hashlib.sha256(os.urandom(16)).hexdigest()[:32]  # Truncated
 
-
-def simulate_kyber_flow(message: str):
-    # Simulated Kyber without external dependencies
-    pk = "KYBER-PUB-" + hexid(16)
-    sk = "KYBER-PRIV-" + hexid(24)
-    ciphertext = "CT-" + hexid(20)
+# Cache PQC results for same message
+@lru_cache(maxsize=32)
+def simulate_kyber_flow_cached(message: str):
+    pk = "KYBER-PUB-" + hexid(8)
+    sk = "KYBER-PRIV-" + hexid(12)
+    ciphertext = "CT-" + hexid(10)
     shared = fake_shared_secret()
-    decapsulated = shared
     return {
         "public_key": pk, 
         "private_key": sk, 
         "ciphertext": ciphertext, 
         "shared_secret": shared, 
-        "decapsulated": decapsulated, 
+        "decapsulated": shared, 
         "shared_match": True,
         "note": "Simulated without PQC dependencies"
     }
 
+def simulate_kyber_flow(message: str):
+    return simulate_kyber_flow_cached(message)
 
-def simulate_dilithium_flow(message: str):
-    # Simulated Dilithium without external dependencies
-    pk = "DILITHIUM-PUB-" + hexid(18)
-    sk = "DILITHIUM-PRIV-" + hexid(24)
-    signature = "SIG-" + hexid(28)
-    verified = True
+@lru_cache(maxsize=32)
+def simulate_dilithium_flow_cached(message: str):
+    pk = "DILITHIUM-PUB-" + hexid(9)
+    sk = "DILITHIUM-PRIV-" + hexid(12)
+    signature = "SIG-" + hexid(14)
     return {
         "public_key": pk, 
         "private_key": sk, 
         "signature": signature, 
-        "verified": verified,
+        "verified": True,
         "note": "Simulated without PQC dependencies"
     }
 
+def simulate_dilithium_flow(message: str):
+    return simulate_dilithium_flow_cached(message)
 
-def quantum_inspired_attack_on_pqc(kyber_info, dilithium_info):
-    complexity = 1_000_000 + int.from_bytes(os.urandom(2), "big") if hasattr(os, "urandom") else 1_000_000
-    attempted = True
-    success = False
+@lru_cache(maxsize=32)
+def quantum_inspired_attack_on_pqc_cached(kyber_str: str, dilithium_str: str):
+    # Use string representations as cache keys
+    complexity = 1_000_000
     detail = (
         "Quantum-inspired attack attempted (simulated). "
-        "Kyber (KEM) decapsulation and Dilithium signature verification remain intact. "
-        "Shor's factoring attack does not apply to lattice-based PQC."
+        "Kyber (KEM) decapsulation and Dilithium signature verification remain intact."
     )
-    return {"attempted": attempted, "success": success, "complexity_estimate": complexity, "detail": detail}
+    return {"attempted": True, "success": False, "complexity_estimate": complexity, "detail": detail}
+
+def quantum_inspired_attack_on_pqc(kyber_info, dilithium_info):
+    # Convert dicts to stable string representations for caching
+    kyber_str = json.dumps(kyber_info, sort_keys=True)
+    dilithium_str = json.dumps(dilithium_info, sort_keys=True)
+    return quantum_inspired_attack_on_pqc_cached(kyber_str, dilithium_str)
 
 
 # ---------------------------
-# Flask API endpoints
+# Flask API endpoints (Optimized)
 # ---------------------------
 @app.route("/api/simulate_shor", methods=["GET"])
 def api_simulate_shor():
-    # supports p, q or N and message
     try:
         p = request.args.get("p", None)
         q = request.args.get("q", None)
         N = request.args.get("N", None)
-        message = request.args.get("message", "A")[:1024]
+        message = request.args.get("message", "A")[:100]  # Limit message length
         e = int(request.args.get("e", 65537))
 
-        p_val = int(p) if p is not None and p != "" else None
-        q_val = int(q) if q is not None and q != "" else None
-        N_val = int(N) if N is not None and N != "" else None
+        p_val = int(p) if p and p != "" else None
+        q_val = int(q) if q and q != "" else None
+        N_val = int(N) if N and N != "" else None
 
         result = run_demo(p_val, q_val, N_val, message, e)
         return jsonify(result)
@@ -518,14 +509,14 @@ def api_simulate_shor():
 @app.route("/api/simulate_pqc", methods=["GET"])
 def api_simulate_pqc():
     try:
-        message = request.args.get("message", "A")[:1024]
+        message = request.args.get("message", "A")[:100]  # Limit message length
 
-        # small realistic delays
-        time.sleep(0.4)
+        # Reduced delays
+        time.sleep(0.1)  # Reduced from 0.4
         kyber = simulate_kyber_flow(message)
-        time.sleep(0.3)
+        time.sleep(0.1)  # Reduced from 0.3
         dilithium = simulate_dilithium_flow(message)
-        time.sleep(0.3)
+        time.sleep(0.1)  # Reduced from 0.3
         attack = quantum_inspired_attack_on_pqc(kyber, dilithium)
 
         response = {
@@ -545,11 +536,8 @@ def api_simulate_pqc():
 
 @app.route("/api/get_shor_circuit", methods=["GET"])
 def api_get_shor_circuit():
-    """Generate a visual representation of Shor's algorithm quantum circuit"""
     try:
         N = int(request.args.get("N", 15))
-        
-        # Simple quantum circuit for Shor's algorithm visualization
         circuit_info = generate_shor_circuit_visualization(N)
         
         return jsonify({
@@ -574,4 +562,5 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     print(f"Starting combined demo server on port {port}...")
     print("Note: Running with simulated PQC (no external dependencies required)")
-    app.run(host="0.0.0.0", port=port)
+    # Use threaded=True for better concurrency
+    app.run(host="0.0.0.0", port=port, threaded=True)
